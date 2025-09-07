@@ -2,19 +2,19 @@
   publish = "_site"
   command = "npx @11ty/eleventy"
 
-# Admin CMS siempre debe servir admin/index.html
-[[redirects]]
-  from = "/admin/*"
-  to = "/admin/index.html"
-  status = 200
-
-# Deja pasar las rutas internas de Netlify Identity
+# Deja que Identity maneje sus rutas
 [[redirects]]
   from = "/.netlify/*"
   to = "/.netlify/:splat"
   status = 200
 
-# Todo lo demás al home (SPA fallback)
+# Siempre cargar el CMS desde admin/
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
+# Todo lo demás → home
 [[redirects]]
   from = "/*"
   to = "/index.html"
