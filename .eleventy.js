@@ -1,12 +1,14 @@
 module.exports = function(eleventyConfig) {
-  // copiar assets al output
-  eleventyConfig.addPassthroughCopy({"src/assets": "assets"});
+  // Copiar assets y admin al build
+  eleventyConfig.addPassthroughCopy({ "src/assets": "assets" });
+  eleventyConfig.addPassthroughCopy("admin");
+
   return {
     dir: {
-      input: "src",
-      includes: "_layouts",
-      data: "../_data",
-      output: "_site"
+      input: "src",       // entrada
+      includes: "_layouts", // layouts
+      data: "../_data",   // tus datos globales
+      output: "_site"     // carpeta final
     },
     passthroughFileCopy: true
   };
