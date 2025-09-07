@@ -1,8 +1,14 @@
 [build]
   publish = "_site"
-  command = "npx @11ty/eleventy"
+  command = "npm run build"
 
-# Solo mantener redirección para TinaCMS (se creará automáticamente)
+# Redirección para TinaCMS admin
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+
+# Redirección general
 [[redirects]]
   from = "/*"
   to = "/index.html"

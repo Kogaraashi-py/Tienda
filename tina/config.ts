@@ -1,56 +1,70 @@
 import { defineConfig } from "tinacms";
 
 // Your hosting provider likely exposes this as an environment variable
-const branch =
-  process.env.GITHUB_BRANCH ||
-  process.env.VERCEL_GIT_COMMIT_REF ||
-  process.env.HEAD ||
-  "main";
+const branch = process.env.HEAD || process.env.VERCEL_GIT_COMMIT_REF || "main";
 
 export default defineConfig({
   branch,
-
-  // Get this from tina.io
-  clientId: process.env.NEXT_PUBLIC_TINA_CLIENT_ID,
-  // Get this from tina.io
-  token: process.env.TINA_TOKEN,
+  clientId: null, // Get this from tina.io
+  token: null, // Get this from tina.io
 
   build: {
     outputFolder: "admin",
-    publicFolder: "public",
+    publicFolder: "_site",
   },
   media: {
     tina: {
-      mediaRoot: "",
-      publicFolder: "public",
+      mediaRoot: "src/assets/images",
+      publicFolder: "_site",
     },
   },
-  // See docs on content modeling for more info on how to setup new content models: https://tina.io/docs/schema/
   schema: {
     collections: [
       {
-        name: "post",
-        label: "Posts",
-        path: "content/posts",
+        name: "products",
+        label: "Productos",
+        path: "src/products",
+        format: "md",
         fields: [
           {
             type: "string",
             name: "title",
-            label: "Title",
+            label: "Título",
             isTitle: true,
             required: true,
           },
           {
-            type: "rich-text",
-            name: "body",
-            label: "Body",
-            isBody: true,
+            type: "number",
+            name: "price",
+            label: "Precio",
+            required: true,
+          },
+          {
+            type: "string",
+            name: "description",
+            label: "Descripción",
+            ui: {
+              component: "textarea",
+            },
+          },
+          {
+            type: "image",
+            name: "image",
+            label: "Imagen",
+          },
+          {
+            type: "boolean",
+            name: "published",
+            label: "Publicado",
+            required: true,
+          },
+          {
+            type: "datetime",
+            name: "date",
+            label: "Fecha",
+            required: true,
           },
         ],
-        ui: {
-          // This is an DEMO router. You can remove this to fit your site
-          router: ({ document }) => `/demo/blog/${document._sys.filename}`,
-        },
       },
     ],
   },
