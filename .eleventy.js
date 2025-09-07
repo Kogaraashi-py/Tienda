@@ -1,15 +1,13 @@
 module.exports = function(eleventyConfig) {
-  // Copiar solo assets al build
+  // Copiar assets al build
   eleventyConfig.addPassthroughCopy({ "src/assets": "assets" });
-  
-  // TinaCMS se encarga de su propia carpeta admin
   
   return {
     dir: {
-      input: "src",       // entrada
-      includes: "_layouts", // layouts
-      data: "../_data",   // tus datos globales
-      output: "_site"     // carpeta final
+      input: "src",
+      includes: "_layouts",
+      data: "../_data",
+      output: "_site"
     },
     passthroughFileCopy: true
   };
