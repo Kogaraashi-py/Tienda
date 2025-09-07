@@ -2,3 +2,8 @@
   publish = "_site"
   command = "npx @11ty/eleventy"
 
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
