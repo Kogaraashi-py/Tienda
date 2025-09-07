@@ -479,6 +479,12 @@
         function renderProducts() {
             const container = document.getElementById('productsContainer');
             
+            // Evitar re-renderizado innecesario
+            if (renderProducts.lastRender === JSON.stringify(filteredProducts)) {
+                return;
+            }
+            renderProducts.lastRender = JSON.stringify(filteredProducts);
+            
             if (filteredProducts.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -496,7 +502,7 @@
                     <div class="product-info">
                         <h3 class="product-title">${product.titulo}</h3>
                         <p class="product-description">${product.descripcion}</p>
-                        <div class="product-price">$${product.precio.toLocaleString()}</div>
+                        <div class="product-price">${product.precio.toLocaleString()}</div>
                         <div class="product-actions">
                             <button class="btn btn-primary" onclick="addToCart(${product.id})">
                                 ➕ Agregar
