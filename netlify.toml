@@ -2,13 +2,7 @@
   publish = "_site"
   command = "npx @11ty/eleventy"
 
-# Para que el CMS funcione
-[[redirects]]
-  from = "/admin/*"
-  to = "/admin/index.html"
-  status = 200
-
-# Todo lo demás al home (aquí es donde caen los invite_token)
+# Solo mantener redirección para TinaCMS (se creará automáticamente)
 [[redirects]]
   from = "/*"
   to = "/index.html"

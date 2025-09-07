@@ -2,12 +2,16 @@
   "name": "mi-tienda",
   "version": "1.0.0",
   "scripts": {
-    "build": "npx @11ty/eleventy",
-    "dev": "npx @11ty/eleventy --serve",
+    "build": "tinacms build && npx @11ty/eleventy",
+    "dev": "TINA_PUBLIC_IS_LOCAL=true tinacms dev -c \"npx @11ty/eleventy --serve\"",
     "start": "npm run dev"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^2.0.0"
+    "@11ty/eleventy": "^2.0.0",
+    "@tinacms/cli": "^1.10.2",
+    "@types/node": "^24.3.1"
+  },
+  "dependencies": {
+    "tinacms": "^2.8.2"
   }
 }
-
