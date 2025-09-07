@@ -2,21 +2,14 @@
   publish = "_site"
   command = "npx @11ty/eleventy"
 
-# Deja que Identity maneje sus rutas
-[[redirects]]
-  from = "/.netlify/*"
-  to = "/.netlify/:splat"
-  status = 200
-
-# Siempre cargar el CMS desde admin/
+# Para que el CMS funcione
 [[redirects]]
   from = "/admin/*"
   to = "/admin/index.html"
   status = 200
 
-# Todo lo demás → home
+# Todo lo demás al home (aquí es donde caen los invite_token)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
