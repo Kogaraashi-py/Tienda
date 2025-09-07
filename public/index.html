@@ -414,286 +414,401 @@
     </footer>
 
     <script>
-        let products = [];
-        let filteredProducts = [];
-        let cart = [];
-        const WHATSAPP_NUMBER = '573001234567'; // Cambia por tu número
+/* Script mejorado para evitar parpadeo de tarjetas/imagenes y controlar re-renders */
+let products = [];
+let filteredProducts = [];
+let cart = [];
+const WHATSAPP_NUMBER = '573001234567'; // Cambia por tu número
+let prevProductsJSON = '';
+let loadingProducts = false;
+let searchDebounceTimer = null;
 
-        // Cargar productos al inicio
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProducts();
-            loadCartFromStorage();
+document.addEventListener('DOMContentLoaded', () => {
+    initFilterButtonsMetadata();
+    loadProducts();
+    loadCartFromStorage();
+    // actualizar en background cada 30s, pero solo re-render si hay cambios
+    setInterval(checkForProductUpdates, 30000);
+
+    // Listener robusto de búsqueda (debounced)
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                searchProducts();
+            }, 300);
         });
+    }
 
-        async function loadProducts() {
-            try {
-                // Intentar cargar desde GitHub/Netlify
-                const response = await fetch('/data/products.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    products = data.productos || [];
-                } else {
-                    // Productos de ejemplo si no hay conexión
-                    products = getExampleProducts();
-                }
-                
-                filteredProducts = products.filter(p => p.activo);
-                renderProducts();
-            } catch (error) {
-                console.error('Error cargando productos:', error);
-                products = getExampleProducts();
-                filteredProducts = products.filter(p => p.activo);
-                renderProducts();
-            }
+    // Cerrar modal al hacer clic fuera
+    const cartModal = document.getElementById('cartModal');
+    if (cartModal) {
+        cartModal.addEventListener('click', function (e) {
+            if (e.target === this) toggleCart();
+        });
+    }
+});
+
+/* --- Product loading and update checking --- */
+async function checkForProductUpdates() {
+    await loadProducts({ onlyCheck: true });
+}
+
+async function loadProducts(options = {}) {
+    if (loadingProducts) return;
+    loadingProducts = true;
+
+    try {
+        const response = await fetch('/data/products.json', { cache: 'no-cache' });
+        let newProducts = [];
+        if (response.ok) {
+            const data = await response.json();
+            newProducts = Array.isArray(data.productos) ? data.productos : [];
+        } else {
+            newProducts = getExampleProducts();
         }
 
-        function getExampleProducts() {
-            return [
-                {
-                    id: 1,
-                    titulo: "Camiseta Premium",
-                    precio: 45000,
-                    descripcion: "Camiseta de alta calidad, 100% algodón. Perfecta para uso diario con un diseño moderno y cómodo.",
-                    imagen: "default.jpg",
-                    activo: true
-                },
-                {
-                    id: 2,
-                    titulo: "Zapatos Deportivos",
-                    precio: 120000,
-                    descripcion: "Zapatos deportivos premium con tecnología de absorción de impacto. Ideales para correr y entrenar.",
-                    imagen: "default.jpg",
-                    activo: true
-                },
-                {
-                    id: 3,
-                    titulo: "Mochila Ejecutiva",
-                    precio: 80000,
-                    descripcion: "Mochila perfecta para profesionales. Compartimento para laptop, resistente al agua y diseño elegante.",
-                    imagen: "default.jpg",
-                    activo: true
-                }
-            ];
+        // Normalizar campos esenciales para comparación (orden predecible)
+        const normalized = (newProducts || []).map(p => ({
+            id: p.id,
+            titulo: p.titulo,
+            precio: p.precio,
+            imagen: p.imagen,
+            activo: !!p.activo,
+            descripcion: p.descripcion
+        })).sort((a,b) => (a.id ?? 0) - (b.id ?? 0));
+
+        const newJSON = JSON.stringify(normalized);
+
+        // Si venimos solo a chequear y no cambió, no hacemos nada
+        if (options.onlyCheck && newJSON === prevProductsJSON) {
+            loadingProducts = false;
+            return;
         }
 
-        function renderProducts() {
-            const container = document.getElementById('productsContainer');
-            
-            // Evitar re-renderizado innecesario
-            if (renderProducts.lastRender === JSON.stringify(filteredProducts)) {
-                return;
-            }
-            renderProducts.lastRender = JSON.stringify(filteredProducts);
-            
-            if (filteredProducts.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h3>🔍 No encontramos productos</h3>
-                        <p>Intenta con otros términos de búsqueda o revisa más tarde</p>
-                    </div>
-                `;
-                return;
-            }
-
-            const productsHTML = filteredProducts.map(product => `
-                <div class="product-card">
-                    <img src="/assets/images/${product.imagen}" alt="${product.titulo}" 
-                         class="product-image" onerror="this.src='/assets/images/default.jpg'">
-                    <div class="product-info">
-                        <h3 class="product-title">${product.titulo}</h3>
-                        <p class="product-description">${product.descripcion}</p>
-                        <div class="product-price">${product.precio.toLocaleString()}</div>
-                        <div class="product-actions">
-                            <button class="btn btn-primary" onclick="addToCart(${product.id})">
-                                ➕ Agregar
-                            </button>
-                            <button class="btn btn-success" onclick="buyNow(${product.id})">
-                                📱 Comprar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            container.innerHTML = `
-                <div class="products-grid">
-                    ${productsHTML}
-                </div>
-            `;
+        // Si no cambió -> no re-render (evita recrear <img>)
+        if (newJSON === prevProductsJSON) {
+            products = newProducts;
+            filteredProducts = products.filter(p => p.activo);
+            loadingProducts = false;
+            return;
         }
 
-        function searchProducts() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            filteredProducts = products.filter(product => 
-                product.activo && (
-                    product.titulo.toLowerCase().includes(query) ||
-                    product.descripcion.toLowerCase().includes(query)
-                )
-            );
+        // Cambió: actualizamos y renderizamos
+        prevProductsJSON = newJSON;
+        products = newProducts;
+        filteredProducts = products.filter(p => p.activo);
+        renderProducts();
+    } catch (err) {
+        console.error('Error cargando productos:', err);
+        const fallback = getExampleProducts();
+        const fallbackJSON = JSON.stringify(fallback);
+        if (fallbackJSON !== prevProductsJSON) {
+            prevProductsJSON = fallbackJSON;
+            products = fallback;
+            filteredProducts = products.filter(p => p.activo);
             renderProducts();
         }
+    } finally {
+        loadingProducts = false;
+    }
+}
 
-        function filterProducts(type) {
-            // Actualizar botones activos
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+/* --- Rendering --- */
+function renderProducts() {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
 
-            switch(type) {
-                case 'todos':
-                    filteredProducts = products.filter(p => p.activo);
-                    break;
-                case 'activos':
-                    filteredProducts = products.filter(p => p.activo);
-                    break;
-                case 'ofertas':
-                    filteredProducts = products.filter(p => p.activo && p.precio < 50000);
-                    break;
-            }
-            renderProducts();
-        }
+    if (filteredProducts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>🔍 No encontramos productos</h3>
+                <p>Intenta con otros términos de búsqueda o revisa más tarde</p>
+            </div>`;
+        return;
+    }
 
-        function addToCart(productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                const existingItem = cart.find(item => item.id === productId);
-                if (existingItem) {
-                    existingItem.cantidad++;
-                } else {
-                    cart.push({ ...product, cantidad: 1 });
-                }
-                updateCartUI();
-                saveCartToStorage();
-                
-                // Animación de feedback
-                event.target.style.background = '#28a745';
-                event.target.textContent = '✅ Agregado';
-                setTimeout(() => {
-                    event.target.style.background = '';
-                    event.target.textContent = '➕ Agregar';
-                }, 1500);
-            }
-        }
+    // Crear grid de forma programática para evitar thrash de layout
+    const grid = document.createElement('div');
+    grid.className = 'products-grid';
 
-        function buyNow(productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                const message = `¡Hola! Me interesa este producto:
+    filteredProducts.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+
+        // Imagen: con atributos para evitar layout shift y carga diferida
+        const img = document.createElement('img');
+        img.className = 'product-image';
+        img.alt = product.titulo || '';
+        img.setAttribute('loading', 'lazy');
+        img.setAttribute('decoding', 'async');
+        img.src = `/assets/images/${product.imagen || 'default.jpg'}`;
+        img.onerror = () => { img.src = '/assets/images/default.jpg'; };
+
+        const info = document.createElement('div');
+        info.className = 'product-info';
+
+        const title = document.createElement('h3');
+        title.className = 'product-title';
+        title.textContent = product.titulo || '';
+
+        const desc = document.createElement('p');
+        desc.className = 'product-description';
+        desc.textContent = product.descripcion || '';
+
+        const price = document.createElement('div');
+        price.className = 'product-price';
+        price.textContent = (product.precio ?? 0).toLocaleString();
+
+        const actions = document.createElement('div');
+        actions.className = 'product-actions';
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn btn-primary';
+        addBtn.textContent = '➕ Agregar';
+        addBtn.onclick = () => addToCart(product.id, addBtn);
+
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'btn btn-success';
+        buyBtn.textContent = '📱 Comprar';
+        buyBtn.onclick = () => buyNow(product.id);
+
+        actions.appendChild(addBtn);
+        actions.appendChild(buyBtn);
+
+        info.appendChild(title);
+        info.appendChild(desc);
+        info.appendChild(price);
+        info.appendChild(actions);
+
+        card.appendChild(img);
+        card.appendChild(info);
+        grid.appendChild(card);
+    });
+
+    // Reemplazo atómico del contenido del contenedor
+    container.innerHTML = '';
+    container.appendChild(grid);
+}
+
+/* --- Búsqueda y filtros --- */
+function searchProducts() {
+    const query = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+    filteredProducts = products.filter(product =>
+        product.activo && (
+            (product.titulo || '').toLowerCase().includes(query) ||
+            (product.descripcion || '').toLowerCase().includes(query)
+        )
+    );
+    renderProducts();
+}
+
+function initFilterButtonsMetadata() {
+    // Añadimos dataset.type a cada botón analizando su atributo onclick (si existe)
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const attr = btn.getAttribute('onclick') || '';
+        const match = attr.match(/filterProducts\(['"]?([^'")]+)['"]?\)/);
+        const type = match ? match[1] : null;
+        if (type) btn.dataset.type = type;
+
+        // Añadimos nuestro listener robusto (evita depender de "event" global)
+        btn.addEventListener('click', (e) => {
+            const t = btn.dataset.type || 'todos';
+            filterProducts(t, btn);
+        });
+    });
+}
+
+function filterProducts(type, btnElement = null) {
+    // Manejar botones activos (si se pasó el elemento usamos ese; si no, buscamos por dataset)
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+    else {
+        // fallback: buscar primer botón con dataset.type === type
+        const fallbackBtn = Array.from(document.querySelectorAll('.filter-btn'))
+            .find(b => b.dataset.type === type);
+        if (fallbackBtn) fallbackBtn.classList.add('active');
+    }
+
+    switch (type) {
+        case 'todos':
+            filteredProducts = products.filter(p => p.activo);
+            break;
+        case 'activos':
+            filteredProducts = products.filter(p => p.activo);
+            break;
+        case 'ofertas':
+            filteredProducts = products.filter(p => p.activo && Number(p.precio) < 50000);
+            break;
+        default:
+            filteredProducts = products.filter(p => p.activo);
+    }
+    renderProducts();
+}
+
+/* --- Carrito y UI del carrito --- */
+function addToCart(productId, btnElement = null) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const existingItem = cart.find(item => item.id === productId);
+    if (existingItem) existingItem.cantidad++;
+    else cart.push({ ...product, cantidad: 1 });
+
+    updateCartUI();
+    saveCartToStorage();
+
+    // feedback visual seguro
+    if (btnElement) {
+        const oldText = btnElement.textContent;
+        btnElement.style.background = '#28a745';
+        btnElement.textContent = '✅ Agregado';
+        setTimeout(() => {
+            btnElement.style.background = '';
+            btnElement.textContent = oldText;
+        }, 1500);
+    }
+}
+
+function buyNow(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const message = `¡Hola! Me interesa este producto:
 
 📦 *${product.titulo}*
-💰 Precio: $${product.precio.toLocaleString()}
-📝 ${product.descripcion}
+💰 Precio: $${(product.precio ?? 0).toLocaleString()}
+📝 ${product.descripcion || ''}
 
 ¿Podrías darme más información?`;
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+}
 
-                const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
-            }
-        }
+function toggleCart() {
+    const modal = document.getElementById('cartModal');
+    if (!modal) return;
+    const visible = modal.style.display === 'block';
+    modal.style.display = visible ? 'none' : 'block';
+    if (!visible) renderCart();
+}
 
-        function toggleCart() {
-            const modal = document.getElementById('cartModal');
-            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
-            if (modal.style.display === 'block') {
-                renderCart();
-            }
-        }
+function renderCart() {
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    if (!cartItems || !cartTotal) return;
 
-        function renderCart() {
-            const cartItems = document.getElementById('cartItems');
-            const cartTotal = document.getElementById('cartTotal');
-            
-            if (cart.length === 0) {
-                cartItems.innerHTML = '<div class="empty-state"><h3>🛒 Tu carrito está vacío</h3></div>';
-                cartTotal.style.display = 'none';
-                return;
-            }
+    if (!cart || cart.length === 0) {
+        cartItems.innerHTML = '<div class="empty-state"><h3>🛒 Tu carrito está vacío</h3></div>';
+        cartTotal.style.display = 'none';
+        updateCartUI();
+        return;
+    }
 
-            const itemsHTML = cart.map(item => `
-                <div class="cart-item">
-                    <img src="/assets/images/${item.imagen}" alt="${item.titulo}" onerror="this.src='/assets/images/default.jpg'">
-                    <div class="cart-item-info">
-                        <div class="cart-item-title">${item.titulo}</div>
-                        <div class="cart-item-price">$${item.precio.toLocaleString()} x ${item.cantidad}</div>
-                    </div>
-                    <button onclick="removeFromCart(${item.id})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                        🗑️
-                    </button>
-                </div>
-            `).join('');
+    const itemsHTML = cart.map(item => `
+        <div class="cart-item">
+            <img src="/assets/images/${item.imagen || 'default.jpg'}" alt="${item.titulo}" onerror="this.src='/assets/images/default.jpg'">
+            <div class="cart-item-info">
+                <div class="cart-item-title">${item.titulo}</div>
+                <div class="cart-item-price">$${(item.precio ?? 0).toLocaleString()} x ${item.cantidad}</div>
+            </div>
+            <button aria-label="Eliminar" onclick="removeFromCart(${item.id})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                🗑️
+            </button>
+        </div>
+    `).join('');
 
-            const total = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            
-            cartItems.innerHTML = itemsHTML;
-            document.getElementById('totalAmount').textContent = total.toLocaleString();
-            cartTotal.style.display = 'block';
-        }
+    const total = cart.reduce((sum, item) => sum + ((Number(item.precio) || 0) * (Number(item.cantidad) || 0)), 0);
+    cartItems.innerHTML = itemsHTML;
+    document.getElementById('totalAmount').textContent = total.toLocaleString();
+    cartTotal.style.display = 'block';
+    updateCartUI();
+}
 
-        function removeFromCart(productId) {
-            cart = cart.filter(item => item.id !== productId);
-            updateCartUI();
-            saveCartToStorage();
-            renderCart();
-        }
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.id !== productId);
+    updateCartUI();
+    saveCartToStorage();
+    renderCart();
+}
 
-        function updateCartUI() {
-            const cartCount = cart.reduce((sum, item) => sum + item.cantidad, 0);
-            document.getElementById('cartCount').textContent = cartCount;
-        }
+function updateCartUI() {
+    const cartCount = (cart || []).reduce((sum, item) => sum + (Number(item.cantidad) || 0), 0);
+    const el = document.getElementById('cartCount');
+    if (el) el.textContent = cartCount;
+}
 
-        function sendWhatsAppOrder() {
-            if (cart.length === 0) return;
-
-            const orderDetails = cart.map(item => 
-                `• ${item.titulo} - $${item.precio.toLocaleString()} x${item.cantidad}`
-            ).join('\n');
-            
-            const total = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            
-            const message = `🛒 *NUEVO PEDIDO*
+/* --- WhatsApp order --- */
+function sendWhatsAppOrder() {
+    if (!cart || cart.length === 0) return;
+    const orderDetails = cart.map(item => `• ${item.titulo} - $${(item.precio ?? 0).toLocaleString()} x${item.cantidad}`).join('\n');
+    const total = cart.reduce((sum, item) => sum + ((Number(item.precio) || 0) * (Number(item.cantidad) || 0)), 0);
+    const message = `🛒 *NUEVO PEDIDO*
 
 ${orderDetails}
 
 💰 *Total: $${total.toLocaleString()}*
 
 ¡Hola! Me gustaría realizar este pedido. ¿Podrías confirmarme la disponibilidad y el proceso de envío?`;
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+}
 
-            const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+/* --- Storage del carrito (evitamos errores en Netlify) --- */
+function saveCartToStorage() {
+    try {
+        // preferimos guardar en window (temporal en sesión), y backup en localStorage si es posible
+        window.cartData = cart;
+        if (window.localStorage) {
+            window.localStorage.setItem('miTienda_cart', JSON.stringify(cart));
         }
+    } catch (e) {
+        console.warn('No se pudo guardar el carrito en localStorage:', e);
+    }
+}
 
-        function saveCartToStorage() {
-            try {
-                // No usar localStorage en Netlify - usar variables en memoria
-                window.cartData = cart;
-            } catch (e) {
-                console.log('Storage no disponible');
-            }
+function loadCartFromStorage() {
+    try {
+        const byWindow = window.cartData;
+        const byLS = window.localStorage ? window.localStorage.getItem('miTienda_cart') : null;
+        cart = byWindow || (byLS ? JSON.parse(byLS) : []) || [];
+        updateCartUI();
+    } catch (e) {
+        console.warn('Error cargando carrito:', e);
+        cart = [];
+    }
+}
+
+/* --- Ejemplos / fallback --- */
+function getExampleProducts() {
+    return [
+        {
+            id: 1,
+            titulo: "Camiseta Premium",
+            precio: 45000,
+            descripcion: "Camiseta de alta calidad, 100% algodón. Perfecta para uso diario con un diseño moderno y cómodo.",
+            imagen: "default.jpg",
+            activo: true
+        },
+        {
+            id: 2,
+            titulo: "Zapatos Deportivos",
+            precio: 120000,
+            descripcion: "Zapatos deportivos premium con tecnología de absorción de impacto. Ideales para correr y entrenar.",
+            imagen: "default.jpg",
+            activo: true
+        },
+        {
+            id: 3,
+            titulo: "Mochila Ejecutiva",
+            precio: 80000,
+            descripcion: "Mochila perfecta para profesionales. Compartimento para laptop, resistente al agua y diseño elegante.",
+            imagen: "default.jpg",
+            activo: true
         }
+    ];
+}
+</script>
 
-        function loadCartFromStorage() {
-            try {
-                cart = window.cartData || [];
-                updateCartUI();
-            } catch (e) {
-                cart = [];
-            }
-        }
-
-        // Búsqueda en tiempo real
-        document.getElementById('searchInput').addEventListener('input', function() {
-            clearTimeout(this.searchTimeout);
-            this.searchTimeout = setTimeout(searchProducts, 300);
-        });
-
-        // Cerrar modal al hacer clic fuera
-        document.getElementById('cartModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                toggleCart();
-            }
-        });
-
-        // Actualizar productos cada 30 segundos
-        setInterval(loadProducts, 30000);
-    </script>
 </body>
 </html>
