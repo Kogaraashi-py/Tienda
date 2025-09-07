@@ -1,12 +1,36 @@
 {
   "name": "mi-tienda",
   "version": "1.0.0",
+  "description": "Tienda online con panel de administrador",
+  "main": "index.js",
   "scripts": {
-    "build": "npx @11ty/eleventy",
-    "dev": "npx @11ty/eleventy --serve",
-    "start": "npm run dev"
+    "dev": "netlify dev",
+    "build": "echo 'Static site - no build process needed'",
+    "deploy": "netlify deploy --prod",
+    "deploy:preview": "netlify deploy",
+    "functions:serve": "netlify functions:serve",
+    "start": "netlify dev"
+  },
+  "keywords": [
+    "ecommerce",
+    "tienda",
+    "netlify",
+    "javascript"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^19.0.0"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^2.0.0"
-  }
+    "netlify-cli": "^15.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tu-usuario/mi-tienda.git"
+  },
+  "homepage": "https://tu-tienda.netlify.app"
 }
