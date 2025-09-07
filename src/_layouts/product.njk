@@ -1,0 +1,20 @@
+---
+layout: base.njk
+---
+<article class="product">
+  <h1>{{ title }}</h1>
+
+  {% if image %}
+    <img src="/assets/images/{{ image }}" alt="{{ title }}" style="max-width:400px;">
+  {% endif %}
+
+  <p>{{ description }}</p>
+  <p>Precio: ${{ price }}</p>
+
+  {# Construir link de WhatsApp usando seller_phone desde _data/site.json #}
+  {% set phone = site.seller_phone %}
+  {% set text = "Hola, me interesa el producto: " + title + " (SKU: " + (sku or '') + "). " + site.site_url + page.url %}
+  {% set wa = "https://wa.me/" + phone + "?text=" + text | url_encode %}
+  <a href="{{ wa }}" target="_blank" rel="noopener">Pedir por WhatsApp</a>
+</article>
+

@@ -1,0 +1,21 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "src/assets/images"
+public_folder: "/assets/images"
+
+collections:
+  - name: "products"
+    label: "Productos"
+    folder: "src/products"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { name: "title", label: "Título", widget: "string" }
+      - { name: "price", label: "Precio", widget: "number" }
+      - { name: "image", label: "Imagen", widget: "image" }
+      - { name: "description", label: "Descripción", widget: "text" }
+      - { name: "sku", label: "SKU", widget: "string", required: false }
+      - { name: "published", label: "Publicado", widget: "boolean", default: true }
+
