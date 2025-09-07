@@ -14,40 +14,54 @@
   <footer>© {{ year }} - {{ site.title }}</footer>
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
   <script>
   // Manejar invitaciones por hash fragment
   if (window.netlifyIdentity) {
     window.netlifyIdentity.on("init", user => {
-      if (!user) {
-        // Revisar si hay un invite_token en la URL
-        const hash = window.location.hash;
-        if (hash.includes('invite_token=')) {
-          // Extraer el token
-          const token = hash.split('invite_token=')[1].split('&')[0];
-          
-          // Abrir el widget de Identity para que el usuario complete el registro
+      console.log("Identity iniciado, usuario actual:", user);
+      
+      // Revisar si hay un invite_token en la URL
+      const hash = window.location.hash;
+      if (hash.includes('invite_token=')) {
+        console.log("Invite token detectado:", hash);
+        
+        // Extraer el token
+        const token = hash.split('invite_token=')[1].split('&')[0];
+        
+        // Si no hay usuario logueado, abrir el widget
+        if (!user) {
+          console.log("Abriendo widget para completar invitación");
           window.netlifyIdentity.open();
-          
-          // Limpiar la URL
-          history.replaceState(null, null, window.location.pathname);
         }
+        
+        // Limpiar la URL después de un delay para que el widget procese el token
+        setTimeout(() => {
+          history.replaceState(null, null, window.location.pathname);
+        }, 1000);
       }
     });
 
     // Cuando el usuario completa el login/registro
     window.netlifyIdentity.on("login", user => {
-      console.log("Usuario logueado:", user.email);
+      console.log("Usuario logueado exitosamente:", user.email);
+      alert("¡Registro exitoso! Ya puedes acceder al CMS.");
+    });
+
+    // Manejar errores
+    window.netlifyIdentity.on("error", err => {
+      console.error("Error de Identity:", err);
     });
 
     // Cerrar el modal después del login
     window.netlifyIdentity.on("close", () => {
-      // Opcional: redirigir al admin si se logearon
       if (window.netlifyIdentity.currentUser()) {
         console.log("Usuario disponible:", window.netlifyIdentity.currentUser().email);
       }
     });
   }
   </script>
-</body>
+  </body>
 </html>
 
